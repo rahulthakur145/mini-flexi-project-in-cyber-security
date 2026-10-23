@@ -1,4 +1,5 @@
 import os
+import random
 import tempfile
 import streamlit as st
 import pandas as pd
@@ -42,6 +43,132 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# -------------------------------------------------------------------------
+# THREAT PORT NUMBERS & SECURITY DEFENSE MODEL DATABASE
+# -------------------------------------------------------------------------
+ATTACK_PORT_DATA = [
+    {
+        "Port": 21,
+        "Protocol": "TCP",
+        "Service": "FTP (File Transfer)",
+        "Threat_Attack": "Cleartext Credential Sniffing & Brute-Force Attack",
+        "Severity": "High 🔴",
+        "Security_Model": "Zero-Trust Encryption Model (Disable FTP; Enforce SFTP on Port 22)",
+        "Firewall_Command": "sudo ufw deny 21/tcp"
+    },
+    {
+        "Port": 22,
+        "Protocol": "TCP",
+        "Service": "SSH (Secure Shell)",
+        "Threat_Attack": "Automated Botnet Brute-Force / Credential Stuffing",
+        "Severity": "High 🔴",
+        "Security_Model": "Key-Based Access Model (Ed25519 SSH Keys + Fail2Ban Rate Limiting)",
+        "Firewall_Command": "sudo ufw limit 22/tcp"
+    },
+    {
+        "Port": 23,
+        "Protocol": "TCP",
+        "Service": "Telnet",
+        "Threat_Attack": "Man-in-the-Middle (MITM) Cleartext Session Hijacking",
+        "Severity": "Critical 🔥",
+        "Security_Model": "Perimeter Hardening Model (Block Port 23; Migrate to SSH)",
+        "Firewall_Command": "sudo ufw deny 23/tcp"
+    },
+    {
+        "Port": 53,
+        "Protocol": "UDP",
+        "Service": "DNS",
+        "Threat_Attack": "DNS Amplification DDoS & Data Exfiltration Tunneling",
+        "Severity": "High 🔴",
+        "Security_Model": "DNSSEC Validation + Response Rate Limiting (RRL) Model",
+        "Firewall_Command": "sudo iptables -A INPUT -p udp --dport 53 -m limit --limit 10/s -j ACCEPT"
+    },
+    {
+        "Port": 80,
+        "Protocol": "TCP",
+        "Service": "HTTP (Web)",
+        "Threat_Attack": "SQL Injection (SQLi), XSS, & Layer-7 HTTP Flood DDoS",
+        "Severity": "Medium 🟠",
+        "Security_Model": "Defense-in-Depth WAF Model (ModSecurity WAF + Force HTTPS Port 443)",
+        "Firewall_Command": "sudo ufw deny 80/tcp && sudo ufw allow 443/tcp"
+    },
+    {
+        "Port": 445,
+        "Protocol": "TCP",
+        "Service": "SMB (Windows Share)",
+        "Threat_Attack": "Ransomware Worm Propagation (EternalBlue / WannaCry)",
+        "Severity": "Critical 🔥",
+        "Security_Model": "Network Micro-Segmentation Model (Block WAN SMB; Disable SMBv1)",
+        "Firewall_Command": "sudo ufw deny 445/tcp"
+    },
+    {
+        "Port": 3306,
+        "Protocol": "TCP",
+        "Service": "MySQL Database",
+        "Threat_Attack": "Remote Database Enumeration & Unauthorized Data Exfiltration",
+        "Severity": "High 🔴",
+        "Security_Model": "Least-Privilege Isolation Model (Bind DB to 127.0.0.1 Localhost Only)",
+        "Firewall_Command": "sudo ufw deny 3306/tcp"
+    },
+    {
+        "Port": 3389,
+        "Protocol": "TCP",
+        "Service": "RDP (Remote Desktop)",
+        "Threat_Attack": "Ransomware Initial Access / BlueKeep RCE / RDP Brute-Force",
+        "Severity": "Critical 🔥",
+        "Security_Model": "Zero-Trust VPN Bastion Model (WireGuard VPN + MFA + NLA)",
+        "Firewall_Command": "sudo ufw deny 3389/tcp"
+    },
+    {
+        "Port": 4444,
+        "Protocol": "TCP",
+        "Service": "Metasploit Listener",
+        "Threat_Attack": "Reverse Shell Backdoor / Command & Control (C2) Channel",
+        "Severity": "Critical 🔥",
+        "Security_Model": "EDR Host Isolation + Strict Egress Traffic Filtering Model",
+        "Firewall_Command": "sudo ufw reject out 4444/tcp"
+    }
+]
+
+df_attacks = pd.DataFrame(ATTACK_PORT_DATA)
+
+
+def render_threat_port_security_module():
+    """Reusable UI component for Threat Port Numbers & Security Defense Models."""
+    st.markdown("### 🛡️ Threat Port Attack Monitor & Security Defense Model")
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        st.markdown("#### 🔍 Select or Simulate Attacked Port")
+        if "sim_port" not in st.session_state:
+            st.session_state.sim_port = 22
+
+        selected_port_num = st.selectbox(
+            "Target Port Number Under Attack:",
+            options=df_attacks["Port"].tolist(),
+            index=df_attacks["Port"].tolist().index(st.session_state.sim_port),
+            format_func=lambda p: f"Port {p} ({df_attacks[df_attacks['Port']==p]['Service'].values[0]})"
+        )
+
+        if st.button("⚡ Simulate Live Port Attack", use_container_width=True):
+            random_choice = random.choice(ATTACK_PORT_DATA)
+            st.session_state.sim_port = random_choice["Port"]
+            selected_port_num = st.session_state.sim_port
+            st.toast(f"🚨 Intrusion Alert: Attack detected on Port {selected_port_num}!", icon="🛡️")
+
+    port_details = df_attacks[df_attacks["Port"] == selected_port_num].iloc[0]
+
+    with col2:
+        st.error(f"#### 🚨 ACTIVE THREAT PORT: `{port_details['Port']}` ({port_details['Protocol']} — {port_details['Service']})")
+        st.markdown(f"**⚡ Attack Vector / Threat Type:** `{port_details['Threat_Attack']}`")
+        st.markdown(f"**📊 Risk Severity:** {port_details['Severity']}")
+        st.success(f"**🛡️ Applied Security Model:** {port_details['Security_Model']}")
+        st.code(f"# Automated IPS / Firewall Mitigation Rule:\n{port_details['Firewall_Command']}", language="bash")
+
+    st.markdown("#### 📋 Complete Threat Port Numbers & Security Model Matrix")
+    st.dataframe(df_attacks, use_container_width=True, hide_index=True)
+
+
 # Initialize Core Singletons in Session State
 if "db" not in st.session_state:
     st.session_state.db = DatabaseManager()
@@ -71,7 +198,15 @@ st.sidebar.markdown("---")
 
 nav_selection = st.sidebar.radio(
     "Navigation",
-    ["📊 Dashboard", "🚨 Alerts", "📈 Traffic Monitor", "📦 Packet Analysis", "⚙️ Settings", "🟢 System Status"],
+    [
+        "📊 Dashboard",
+        "🚨 Alerts",
+        "🛡️ Threat Ports & Security Model",
+        "📈 Traffic Monitor",
+        "📦 Packet Analysis",
+        "⚙️ Settings",
+        "🟢 System Status"
+    ],
     label_visibility="collapsed"
 )
 
@@ -182,7 +317,6 @@ if nav_selection == "📊 Dashboard":
     with c_left:
         st.markdown("### Traffic Overview")
         if not events_df.empty:
-            # Aggregate events by protocol or timestamp for trend line chart
             fig_traffic = go.Figure()
             fig_traffic.add_trace(go.Scatter(
                 y=[15000, 22000, 18000, 25000, 21000, 24000, 26000],
@@ -245,6 +379,10 @@ if nav_selection == "📊 Dashboard":
         st.markdown("Network I/O (45%)")
         st.progress(45)
 
+    # Added directly at the bottom of the Main Dashboard
+    st.markdown("---")
+    render_threat_port_security_module()
+
 elif nav_selection == "🚨 Alerts":
     st.markdown("## 🚨 Intrusion Alerts & Response Log")
     if not alerts_df.empty:
@@ -258,16 +396,27 @@ elif nav_selection == "🚨 Alerts":
     else:
         st.info("No firewall actions triggered.")
 
+elif nav_selection == "🛡️ Threat Ports & Security Model":
+    st.markdown("## 🛡️ Threat Port Numbers & Active Security Defense Models")
+    render_threat_port_security_module()
+
 elif nav_selection == "📈 Traffic Monitor":
     st.markdown("## 📈 Live Traffic Monitor & Packet Logs")
     if not events_df.empty:
         st.dataframe(events_df, use_container_width=True, hide_index=True)
+        if "dst_port" in events_df.columns:
+            st.markdown("### 🎯 Detected Destination Ports in Packet Stream")
+            port_counts = events_df["dst_port"].value_counts().reset_index()
+            port_counts.columns = ["Port Number", "Packet Count"]
+            st.dataframe(port_counts, use_container_width=True, hide_index=True)
     else:
         st.info("No packets analyzed yet.")
 
 elif nav_selection == "📦 Packet Analysis":
     st.markdown("## 📦 Behavioral ML & Deep Packet Inspection")
     st.write("SentinelNet inspects payloads for watched Gmail watchlists and isolates anomalies using Isolation Forest.")
+    st.markdown("---")
+    render_threat_port_security_module()
 
 elif nav_selection == "⚙️ Settings":
     st.markdown("## ⚙️ System Settings & Thresholds")
