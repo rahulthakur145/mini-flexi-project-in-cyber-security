@@ -601,5 +601,28 @@ elif nav_selection == "🟢 System Status":
         st.success("✅ All detection engines, IPS prevention rules, Wi-Fi interfaces, SQLite database, and ML models are operating at normal baseline.")
 
     render_dynamic_status_panel(telemetry)
+    
+    # =========================================================================
+    # ADDED: CONNECTED VIEWER & SOURCE ID LOG
+    # =========================================================================
+    st.markdown("---")
+    st.markdown("### 👥 Connected Viewers & Source ID Registry")
+    st.caption("Tracks unique IP addresses and watchlist identifiers interacting with SentinelNet.")
+    
+    if not events_df.empty and "src_ip" in events_df.columns:
+        # Extract unique viewer source IDs/IPs from SQLite security events
+        viewers_df = events_df[["src_ip"]].drop_duplicates().reset_index(drop=True)
+        viewers_df.rename(columns={"src_ip": "Viewer Source ID (IP Address)"}, inplace=True)
+        viewers_df["Watchlist Association"] = viewers_df["Viewer Source ID (IP Address)"].apply(
+            lambda ip: "Watched Admin / Watchlist Target" if ip == "127.0.0.1" else "External/Client Node"
+        )
+        st.dataframe(viewers_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No external viewer source IDs logged yet. Run a PCAP analysis or generate traffic.")
+    # =========================================================================
+
+    st.markdown("---")
+    st.markdown("**Group 21 - Symbiosis Institute of Technology (Batch 2024–2028)**")
+    render_dynamic_status_panel(telemetry)
     st.markdown("---")
     st.markdown("**Group 21 - Symbiosis Institute of Technology (Batch 2024–2028)**")
